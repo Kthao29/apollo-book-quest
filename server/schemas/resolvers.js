@@ -17,18 +17,19 @@ const resolvers = {
 
   Mutation: {
     login: async (parent, { email, password }) => {
+      // Find the user with the provided email in the database
       const user = await User.findOne({ email });
-
+      // If user does not exist, throw an AuthenticationError
       if (!user) {
         throw AuthenticationError;
       }
 
       const correctPw = await user.isCorrectPassword(password);
-
+      // If password is wrong, throw error
       if (!correctPw) {
         throw AuthenticationError;
       }
-
+      // Generate token
       const token = signToken(user);
       return { token, user };
     },
