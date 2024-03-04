@@ -7,7 +7,7 @@ export const getMe = (token) => {
     },
   });
 };
-// route to create user
+
 export const createUser = (userData) => {
   return fetch('/api/users', {
     method: 'POST',
@@ -17,7 +17,7 @@ export const createUser = (userData) => {
     body: JSON.stringify(userData),
   });
 };
-// route to login with user
+
 export const loginUser = (userData) => {
   return fetch('/api/users/login', {
     method: 'POST',

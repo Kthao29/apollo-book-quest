@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 // import schema from Book.js
 const bookSchema = require('./Book');
 
+// Define userSchema using Mongoose Schema
 const userSchema = new Schema(
   {
     username: {

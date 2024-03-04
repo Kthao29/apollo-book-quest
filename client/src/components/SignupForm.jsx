@@ -1,45 +1,65 @@
 import { useState } from 'react';
 import { Form, Button, Alert } from 'react-bootstrap';
 import { useMutation } from '@apollo/client';
-import { ADD_USER } from '../utils/mutations';
+import { CREATE_USER } from '../utils/mutations';
 import Auth from '../utils/auth';
 
-const SignupForm = () => {
+
+// Define SignupForm component
+const SignupForm = (props) => {
+  // set initial form state
   const [userFormData, setUserFormData] = useState({ username: '', email: '', password: '' });
-  const [validated] = useState(false);
+  // set state for form validation
+  const [validated, setValidated] = useState(false);
+  // set state for alert
   const [showAlert, setShowAlert] = useState(false);
 
-  // Define the addUser mutation hook
-  const [addUser, { error }] = useMutation(ADD_USER);
+    // useMutation hook to execute createUser mutation
+  const [createUser, { error, data }] = useMutation(CREATE_USER);
 
+    // Function to handle input change in form fields
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setUserFormData({ ...userFormData, [name]: value });
   };
 
+   // Function to handle form submission
   const handleFormSubmit = async (event) => {
     event.preventDefault();
 
+    // check if form has everything (as per react-bootstrap docs)
     const form = event.currentTarget;
     if (form.checkValidity() === false) {
       event.preventDefault();
       event.stopPropagation();
     }
 
+    setValidated(true);
+
     try {
-      const { data } = await addUser({ variables: { ...userFormData } }); // Execute addUser mutation
-      Auth.login(data.addUser.token);
+      const { data } = await createUser({
+        variables: { ...userFormData },
+      });
+      Auth.login(data.createUser.token);
     } catch (err) {
       console.error(err);
       setShowAlert(true);
     }
 
-    setUserFormData({ username: '', email: '', password: '' });
+       // Reset form data
+    setUserFormData({
+      username: '',
+      email: '',
+      password: '',
+    });
   };
 
+    // Render SignupForm component
   return (
     <>
+      {/* This is needed for the validation functionality above */}
       <Form noValidate validated={validated} onSubmit={handleFormSubmit}>
+        {/* show alert if server response is bad */}
         <Alert dismissible onClose={() => setShowAlert(false)} show={showAlert} variant='danger'>
           Something went wrong with your signup!
         </Alert>

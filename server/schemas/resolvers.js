@@ -1,73 +1,103 @@
-const { User, Book } = require('../models');
+// Import User model and authentication utilities
+const { User } = require('../models');
 const { signToken, AuthenticationError } = require('../utils/auth');
 
+// Define resolvers object
 const resolvers = {
-  Query: {
-    // By adding context to our query, we can retrieve the logged in user without specifically searching for them
-    me: async (parent, args, context) => {
-      if (context.user) {
-        return User.findOne({ _id: context.user._id });
-      }
-      
-      // Give error
-      throw AuthenticationError;
+    Query: {
+        // Resolver to retrieve active user based on context
+        activeUser: async (parent, args, context) => {
+            // Check if user is authenticated in context
+            if (context.user) {
+                // If authenticated, find user by ID and return
+                return User.findOne({ _id: context.user._id });
+            }
+            // If not authenticated, throw authentication error
+            throw AuthenticationError;
+        },
     },
-  },
+    Mutation: {
+        // Resolver to create a new user
+        createUser: async (parent, { username, email, password }) => {
+            // Create new user with provided username, email, and password
+            const user = await User.create({ username, email, password });
+            // Generate JWT token for the new user
+            const token = signToken(user);
+            // Return token and user
+            return { token, user };
+        },
+        
+        // Resolver to log in an existing user
+        login: async (parent, args) => {
+            try {
+                // Find user by email
+                const user = await User.findOne({ email: args.email });
+                // If user not found, return error message
+                if (!user) {
+                    return { message: "Can't find this user" };
+                }
+                // Check if password is correct
+                const correctPw = await user.isCorrectPassword(args.password);
+                // If password incorrect, return error message
+                if (!correctPw) {
+                    return { message: 'Wrong password!' };
+                }
+                // Generate JWT token for the user
+                const token = signToken(user);
+                // Return token and user
+                return { token, user };
+            } catch (err) {
+                console.log(err);
+                return err;
+            }
+        },
+        // Resolver to save a book to user's saved books
+        saveBook: async (parent, { bookId, title, authors, description, image, link }, context) => {
+            try {
+                // Update user's saved books with new book
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: context.user._id },
+                    { $addToSet: {
+                        savedBooks: {
+                            bookId,
+                            title,
+                            authors,
+                            description,
+                            image,
+                            link
+                        }
+                    }},
+                    { new: true, runValidators: true }
+                );
+                // Return updated user
+                return updatedUser
+            } catch (err) {
+                console.log(err);
+                return err;
+            }
+        },
+        // Resolver to remove a book from user's saved books
+        removeBook: async (parent, args, context) => {
+            try {
+                // Remove book from user's saved books
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: context.user._id },
+                    { $pull: { savedBooks: { bookId: args.bookId } } },
+                    { new: true }
+                );
+                // If user not found, return error message
+                if (!updatedUser) {
+                    return { message: "Couldn't find user with this id!" };
+                }
+                // Return updated user
+                return updatedUser;
+            } catch (err) {
+                console.log(err);
+                return err;
+            }
+        }
+    }
+}
 
-
-  Mutation: {
-    login: async (parent, { email, password }) => {
-      // Find the user with the provided email in the database
-      const user = await User.findOne({ email });
-      // If user does not exist, throw an AuthenticationError
-      if (!user) {
-        throw AuthenticationError;
-      }
-
-      const correctPw = await user.isCorrectPassword(password);
-      // If password is wrong, throw error
-      if (!correctPw) {
-        throw AuthenticationError;
-      }
-      // Generate token
-      const token = signToken(user);
-      return { token, user };
-    },
-
-    // Add a third argument to the resolver to access data in our `context`
-    addUser: async (parent, args) =>{
-      const user = await User.create(args);
-      const token = signToken(user);
-      return { token, user };
-      
-  },
-    // Set up mutation so a logged in user can only remove their profile and no one else's
-    saveBook: async (parent, { book }, context) => {
-      try {
-        const changeUser = await User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $addToSet: { savedBooks: book } },
-          { new: true, runValidators: true }
-        );
-        return changeUser;
-      } catch (err) {
-        console.log(err);
-        return err;
-      }
-    },
-    // Make it so a logged in user can only remove a skill from their own profile
-    removeBook: async (parent, { bookId }, context) => {
-      if (context.user) {
-        return User.findOneAndUpdate(
-          { _id: context.user._id },
-          { $pull: { savedBooks: { _id: bookId } } },
-          { new: true }
-        );
-      }
-      throw new AuthenticationError();
-    },
-  },
-};
-
-
+// Export resolvers object
 module.exports = resolvers;

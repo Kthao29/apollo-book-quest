@@ -1,42 +1,56 @@
+// see SignupForm.js for comments
 import { useState } from 'react';
 import { Form, Button, Alert } from 'react-bootstrap';
-import { useMutation } from '@apollo/client'; // Import useMutation hook
-import { LOGIN_USER } from '../utils/mutations'; // Import LOGIN_USER mutation
+
+import { useMutation } from '@apollo/client';
+import { LOGIN_USER } from '../utils/mutations';
 import Auth from '../utils/auth';
 
-const LoginForm = () => {
+// Define LoginForm component
+const LoginForm = (props) => {
   const [userFormData, setUserFormData] = useState({ email: '', password: '' });
-  const [validated] = useState(false);
+  const [validated, setValidated] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  
-  // Define the loginUser mutation hook
-  const [loginUser, { error }] = useMutation(LOGIN_USER);
 
+  const [login, { error, data }] = useMutation(LOGIN_USER);
+
+    // Function to handle input change in form fields
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setUserFormData({ ...userFormData, [name]: value });
   };
 
+    // Function to handle form submission
   const handleFormSubmit = async (event) => {
     event.preventDefault();
 
+    // check if form has everything (as per react-bootstrap docs)
     const form = event.currentTarget;
     if (form.checkValidity() === false) {
       event.preventDefault();
       event.stopPropagation();
     }
 
+    setValidated(true);
+
     try {
-      const { data } = await loginUser({ variables: { ...userFormData } }); // Execute loginUser mutation
-      Auth.login(data.loginUser.token);
+      const { data } = await login({
+        variables: { ...userFormData },
+      });
+      Auth.login(data.login.token);
     } catch (err) {
       console.error(err);
       setShowAlert(true);
     }
 
-    setUserFormData({ email: '', password: '' });
+    setUserFormData({
+      username: '',
+      email: '',
+      password: '',
+    });
   };
 
+    // Render LoginForm component
   return (
     <>
       <Form noValidate validated={validated} onSubmit={handleFormSubmit}>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+// Import necessary dependencies and components
+import { useEffect } from 'react';
 import {
   Container,
   Card,
@@ -7,42 +8,35 @@ import {
   Col
 } from 'react-bootstrap';
 
-import { getMe, deleteBook } from '../utils/API';
+import { useMutation, useQuery } from '@apollo/client';
+import { QUERY_ACTIVE_USER } from '../utils/queries';
+import { REMOVE_BOOK } from '../utils/mutations';
+
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
 
+// Define SavedBooks component
 const SavedBooks = () => {
-  const [userData, setUserData] = useState({});
+  const { loading, data, refetch } = useQuery(QUERY_ACTIVE_USER);
+  const [removeBook] = useMutation(REMOVE_BOOK);
+  const userData = data?.activeUser || {};
 
-  // use this to determine if `useEffect()` hook needs to run again
-  const userDataLength = Object.keys(userData).length;
-
+    // Effect hook to refetch data on initial render
   useEffect(() => {
-    const getUserData = async () => {
-      try {
-        const token = Auth.loggedIn() ? Auth.getToken() : null;
+    refetch(); 
+  }, [refetch]);
 
-        if (!token) {
-          return false;
-        }
+    // Render loading message while data is loading
+  if (loading) {
+    return <h2>Loading Books...</h2>;
+  }
 
-        const response = await getMe(token);
+  // Render message if user is not logged in
+  if (!userData?.username) {
+    return <h4>You must be logged in the view this page.</h4>;
+  }
 
-        if (!response.ok) {
-          throw new Error('something went wrong!');
-        }
-
-        const user = await response.json();
-        setUserData(user);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    getUserData();
-  }, [userDataLength]);
-
-  // create function that accepts the book's mongo _id value as param and deletes the book from the database
+  // Function to handle book deletion
   const handleDeleteBook = async (bookId) => {
     const token = Auth.loggedIn() ? Auth.getToken() : null;
 
@@ -51,29 +45,19 @@ const SavedBooks = () => {
     }
 
     try {
-      const response = await deleteBook(bookId, token);
-
-      if (!response.ok) {
-        throw new Error('something went wrong!');
-      }
-
-      const updatedUser = await response.json();
-      setUserData(updatedUser);
-      // upon success, remove book's id from localStorage
+      await removeBook({ variables: { bookId: bookId } });
+      await refetch();
       removeBookId(bookId);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // if data isn't here yet, say so
-  if (!userDataLength) {
-    return <h2>LOADING...</h2>;
-  }
 
+  // Render SavedBooks component
   return (
     <>
-      <div fluid className="text-light bg-dark p-5">
+      <div fluid="true" className="text-light bg-dark p-5">
         <Container>
           <h1>Viewing saved books!</h1>
         </Container>
@@ -85,9 +69,9 @@ const SavedBooks = () => {
             : 'You have no saved books!'}
         </h2>
         <Row>
-          {userData.savedBooks.map((book) => {
+          {userData.savedBooks.map((book, index) => {
             return (
-              <Col md="4">
+              <Col key={index} md="4">
                 <Card key={book.bookId} border='dark'>
                   {book.image ? <Card.Img src={book.image} alt={`The cover for ${book.title}`} variant='top' /> : null}
                   <Card.Body>
